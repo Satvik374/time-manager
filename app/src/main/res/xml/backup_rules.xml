@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Allowlist, not a blocklist: only the schedule/progress database is backed up.
+  The DataStore file holding the API key lives outside `database` and is therefore
+  never included, which is deliberate — a key should not travel in a cloud backup.
+-->
+<full-backup-content>
+    <include domain="database" path="." />
+</full-backup-content>

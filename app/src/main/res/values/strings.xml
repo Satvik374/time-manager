@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kairo</string>
+    <string name="tab_today">Today</string>
+    <string name="tab_planner">Planner</string>
+    <string name="tab_coach">Coach</string>
+    <string name="tab_insights">Insights</string>
+    <string name="tab_rewards">Rewards</string>
+    <string name="channel_reminders_name">Task reminders</string>
+    <string name="channel_reminders_desc">Nudges before a scheduled block starts</string>
+    <string name="channel_coach_name">Coach suggestions</string>
+    <string name="channel_coach_desc">Occasional recommendations from your AI coach</string>
+</resources>
