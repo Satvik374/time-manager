@@ -122,7 +122,8 @@ class AnalyticsRepository @Inject constructor(
     /** Completed blocks bucketed into six 4-hour bands — feeds the "when do you actually deliver" chart. */
     suspend fun hourBands(from: Long, to: Long): List<Int> {
         val tasks = taskDao.getActive().associateBy { it.id }
-        val logs = logDao.getForRange(from, to).filter { it.completed }
+        val limit = minOf(to, TimeUtils.todayEpochDay())
+        val logs = logDao.getForRange(from, limit).filter { it.completed }
         val bands = IntArray(6)
         logs.forEach { log ->
             val task = tasks[log.taskId] ?: return@forEach
@@ -136,10 +137,12 @@ class AnalyticsRepository @Inject constructor(
     /** Per-weekday completion rate over a window — powers "your Thursdays are weak". */
     suspend fun weekdayProfile(from: Long, to: Long): Map<Int, Float> {
         val tasks = taskDao.getActive()
-        val logs = logDao.getForRange(from, to).filter { it.completed }.groupBy { it.epochDay }
+        val limit = minOf(to, TimeUtils.todayEpochDay())
+        val logs = logDao.getForRange(from, limit).filter { it.completed }.groupBy { it.epochDay }
         val planned = HashMap<Int, Int>()
         val done = HashMap<Int, Int>()
-        for (day in from..to) {
+        // A day that hasn't happened yet is not a weak day; it simply hasn't been scored.
+        for (day in from..limit) {
             val dow = TimeUtils.dayOfWeek(day).value
             val p = tasks.count { taskRepository.occursOn(it, day) }
             if (p == 0) continue

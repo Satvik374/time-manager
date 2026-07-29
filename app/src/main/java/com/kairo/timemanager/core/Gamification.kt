@@ -109,4 +109,25 @@ object ScoreCopy {
     }
 
     fun percent(rate: Float): String = "${(rate * 100).roundToInt()}%"
+
+    /**
+     * The verdict shown against a single day, judged only on the blocks the clock has already
+     * asked for. An evening gym session is not a block you have failed at three in the afternoon,
+     * so a day still running is graded on what is due — the same reason analytics only score
+     * elapsed days. [due] equals [planned] for any day that is over.
+     */
+    fun dayGrade(completed: Int, due: Int, planned: Int): String = when {
+        planned == 0 -> "Rest day"
+        due == 0 -> if (completed > 0) "Ahead" else "Not due yet"
+        // Say "so far" while blocks are still to come, so a verdict on half a day never reads
+        // as a verdict on the whole one.
+        due < planned -> "${grade(completed.toFloat() / due)} so far"
+        else -> grade(completed.toFloat() / due)
+    }
+
+    /** Rate to colour a day's ring by — pairs with [dayGrade], not with raw progress. */
+    fun dayGradeRate(completed: Int, due: Int, planned: Int): Float = when {
+        planned == 0 || due == 0 -> 1f
+        else -> completed.toFloat() / due
+    }
 }

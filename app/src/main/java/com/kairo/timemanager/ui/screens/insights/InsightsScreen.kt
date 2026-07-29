@@ -100,7 +100,7 @@ fun InsightsScreen(viewModel: InsightsViewModel = hiltViewModel()) {
                 StatTile(
                     label = "Perfect days",
                     value = report.perfectDays.toString(),
-                    caption = "${report.activeDays}/${report.days.size} days active",
+                    caption = "${report.activeDays}/${report.elapsedDays.size} days so far",
                     accent = MaterialTheme.colorScheme.tertiary,
                     icon = Icons.Filled.LocalFireDepartment,
                     modifier = Modifier.weight(1f)
@@ -163,7 +163,7 @@ fun InsightsScreen(viewModel: InsightsViewModel = hiltViewModel()) {
             if (state.period != Period.DAILY) {
                 Spacer(Modifier.height(22.dp))
                 SectionHeader("Completion trend")
-                KairoCard { TrendLineChart(report.days) }
+                KairoCard { TrendLineChart(report.elapsedDays) }
             }
 
             Spacer(Modifier.height(22.dp))
@@ -315,7 +315,7 @@ private fun HeadlineCard(state: InsightsUiState, report: PeriodReport) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                report.worstDay?.takeIf { report.days.size > 1 }?.let {
+                report.worstDay?.takeIf { report.elapsedDays.size > 1 }?.let {
                     Text(
                         "Weakest: ${TimeUtils.formatDayLabel(it.epochDay)} · ${(it.completionRate * 100).roundToInt()}%",
                         style = MaterialTheme.typography.bodySmall,
@@ -398,7 +398,7 @@ private fun SelectedDayCard(snapshot: DaySnapshot) {
 /** The table view that backs up every chart above — required so nothing depends on colour alone. */
 @Composable
 private fun DayTable(report: PeriodReport) {
-    val rows = report.days.filter { it.planned > 0 || it.completed > 0 }
+    val rows = report.elapsedDays.filter { it.planned > 0 || it.completed > 0 }
     if (rows.isEmpty()) {
         Text(
             "Nothing scheduled in this period.",

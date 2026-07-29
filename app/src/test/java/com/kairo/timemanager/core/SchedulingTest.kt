@@ -212,4 +212,37 @@ class ScoreCopyTest {
         assertEquals("67%", ScoreCopy.percent(2f / 3f))
         assertEquals("100%", ScoreCopy.percent(1f))
     }
+
+    @Test
+    fun `a finished day is graded on everything it planned`() {
+        assertEquals(ScoreCopy.grade(1f), ScoreCopy.dayGrade(completed = 6, due = 6, planned = 6))
+        assertEquals(ScoreCopy.grade(0.5f), ScoreCopy.dayGrade(completed = 3, due = 6, planned = 6))
+    }
+
+    @Test
+    fun `a running day is graded only on the blocks that are due, and says so`() {
+        // Three of six done at midday with the rest scheduled for the evening: that is everything
+        // the clock has asked for, not a half-failed day.
+        assertEquals(
+            "${ScoreCopy.grade(1f)} so far",
+            ScoreCopy.dayGrade(completed = 3, due = 3, planned = 6)
+        )
+        assertEquals(
+            "${ScoreCopy.grade(1f / 3f)} so far",
+            ScoreCopy.dayGrade(completed = 1, due = 3, planned = 6)
+        )
+    }
+
+    @Test
+    fun `nothing is graded before anything is due`() {
+        assertEquals("Not due yet", ScoreCopy.dayGrade(completed = 0, due = 0, planned = 6))
+        assertEquals("Ahead", ScoreCopy.dayGrade(completed = 2, due = 0, planned = 6))
+        assertEquals(1f, ScoreCopy.dayGradeRate(completed = 0, due = 0, planned = 6))
+    }
+
+    @Test
+    fun `an empty day is a rest day rather than a failure`() {
+        assertEquals("Rest day", ScoreCopy.dayGrade(completed = 0, due = 0, planned = 0))
+        assertEquals(1f, ScoreCopy.dayGradeRate(completed = 0, due = 0, planned = 0))
+    }
 }

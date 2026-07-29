@@ -79,34 +79,45 @@ data class PeriodReport(
     val days: List<DaySnapshot>,
     val categories: List<CategorySlice>
 ) {
-    val planned: Int get() = days.sumOf { it.planned }
-    val completed: Int get() = days.sumOf { it.completed }
-    val focusMinutes: Int get() = days.sumOf { it.completedMinutes }
-    val plannedMinutes: Int get() = days.sumOf { it.plannedMinutes }
-    val completionRate: Float get() = if (planned == 0) 0f else completed.toFloat() / planned
-    val perfectDays: Int get() = days.count { it.isPerfect }
-    val activeDays: Int get() = days.count { it.completed > 0 }
+    /**
+     * Only days that have actually happened can be judged. A week viewed on Wednesday still
+     * contains Thursday through Sunday, and scoring those as 0% would report the rest of the
+     * week as failure before it has begun. [days] keeps the full range for the bar chart — a
+     * pale planned bar on a future day is useful — but every rate below uses elapsed days only.
+     */
+    val elapsedDays: List<DaySnapshot>
+        get() = days.filter { it.epochDay <= TimeUtils.todayEpochDay() }
 
-    val bestDay: DaySnapshot? get() = days.filter { it.planned > 0 }.maxByOrNull { it.completionRate }
-    val worstDay: DaySnapshot? get() = days.filter { it.planned > 0 }.minByOrNull { it.completionRate }
+    val planned: Int get() = elapsedDays.sumOf { it.planned }
+    val completed: Int get() = elapsedDays.sumOf { it.completed }
+    val focusMinutes: Int get() = elapsedDays.sumOf { it.completedMinutes }
+    val plannedMinutes: Int get() = elapsedDays.sumOf { it.plannedMinutes }
+    val completionRate: Float get() = if (planned == 0) 0f else completed.toFloat() / planned
+    val perfectDays: Int get() = elapsedDays.count { it.isPerfect }
+    val activeDays: Int get() = elapsedDays.count { it.completed > 0 }
+
+    val bestDay: DaySnapshot?
+        get() = elapsedDays.filter { it.planned > 0 }.maxByOrNull { it.completionRate }
+    val worstDay: DaySnapshot?
+        get() = elapsedDays.filter { it.planned > 0 }.minByOrNull { it.completionRate }
 
     /** How evenly effort is spread — high consistency means few zero days. */
     val consistency: Float
         get() {
-            val scheduled = days.count { it.planned > 0 }
+            val scheduled = elapsedDays.count { it.planned > 0 }
             if (scheduled == 0) return 0f
-            return days.count { it.completed > 0 }.toFloat() / scheduled
+            return elapsedDays.count { it.completed > 0 }.toFloat() / scheduled
         }
 
     val averageCompletedPerDay: Float
-        get() = if (days.isEmpty()) 0f else completed.toFloat() / days.size
+        get() = if (elapsedDays.isEmpty()) 0f else completed.toFloat() / elapsedDays.size
 
     /** Busiest hour band across the period, for the "you work best at…" insight. */
     fun summaryLine(): String {
         val pct = (completionRate * 100).toInt()
         return "$label: $completed/$planned blocks done ($pct%), " +
             "${TimeUtils.formatDuration(focusMinutes)} focused, " +
-            "$perfectDays perfect day(s), streak-eligible days $activeDays/${days.size}."
+            "$perfectDays perfect day(s), streak-eligible days $activeDays/${elapsedDays.size}."
     }
 }
 

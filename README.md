@@ -1,12 +1,18 @@
-# Kairo — AI time manager for Android
+# Kairo — AI time manager
 
 A timetable app built around three ideas: every block is a **checklist** you can actually tick
 off, every day feeds **real analytics**, and an **AI coach** that edits your schedule through
 tools rather than just talking about it.
 
-Native Android — Kotlin, Jetpack Compose, Material 3, Room, Hilt, WorkManager. Everything is
-stored on-device; the only thing that leaves the phone is what you send to the AI provider you
-configure yourself.
+Two clients, same app:
+
+| | Stack | Data |
+|---|---|---|
+| **[`app/`](app) — Android** | Kotlin, Jetpack Compose, Material 3, Room, Hilt, WorkManager | on-device (Room) |
+| **[`web/`](web) — desktop web** | React 18, TypeScript, Vite | in-browser (`localStorage`) |
+
+Both are local-only. The only thing that leaves the device is what you send to the AI provider you
+configure yourself. The two don't share data yet — see [Not built yet](#not-built-yet).
 
 ## The five tabs
 
@@ -17,6 +23,10 @@ configure yourself.
 | **Coach** | Chat with the AI. Replies render as formatted text, and it shows exactly which tools it ran. |
 | **Insights** | Daily / weekly / monthly analysis — completion rate, trend, category split, time-of-day profile, weekday strengths, month heatmap, and a data table. |
 | **Rewards** | Level and XP, coin shop, streak with freeze tokens, and 15 achievements. |
+
+The web client has the same five, in a persistent sidebar instead of a bottom bar, with the
+screens re-laid-out for a wide window: multi-column dashboards, hover readouts on every chart, and
+keyboard navigation (`1`–`5` for tabs, `n` for a new block). Details in [`web/README.md`](web/README.md).
 
 ## The AI layer
 
@@ -97,9 +107,13 @@ never.
   memory, so a cold start is always locked.
 - **Settings** — rename yourself, change or remove the PIN, toggle biometrics, or lock immediately.
 
-Scope, stated plainly: this gates the UI. It is not encryption at rest — your data is protected by
-Android's app sandbox, as with any app. And because there is no account, a forgotten PIN can only
-be cleared by reinstalling, which erases the data. The lock screen says exactly that.
+The web client has the same lock — same PBKDF2 parameters, same escalating lockout, via WebCrypto —
+minus biometrics, and re-locking on a tab that has been in the background past your grace period.
+
+Scope, stated plainly: this gates the UI. It is not encryption at rest — on Android your data is
+protected by the app sandbox, and in the browser it is plain `localStorage` that devtools can read.
+And because there is no account, a forgotten PIN can only be cleared by wiping the data. Both lock
+screens say exactly that.
 
 ## Streaks and rewards
 
@@ -124,6 +138,11 @@ All derived from the current task definitions joined with immutable per-day logs
 - Category donut, six time-of-day bands, weekday strength profile
 - A day-by-day table backing every chart
 
+Only **elapsed** days are scored. A week opened on Wednesday still contains Thursday through
+Sunday, and counting those as 0% would report the rest of the week as a failure before it had
+happened — so rates, best/worst day, the trend line and the weekday profile all stop at today,
+while the bar chart still draws the days ahead as pale planned bars.
+
 Chart colours follow a fixed categorical order validated for colour-vision deficiency against the
 app's own light and dark surfaces (adjacent-pair CVD ΔE 9.1 light / 8.4 dark, normal-vision 19.6 /
 19.3). Three light-mode hues sit under 3:1 contrast, which is why every chart ships visible labels,
@@ -131,7 +150,7 @@ a legend, or the table — identity never depends on colour alone.
 
 ## Build
 
-Requires JDK 17+ and the Android SDK (compileSdk 35, minSdk 26).
+**Android** — JDK 17+ and the Android SDK (compileSdk 35, minSdk 26):
 
 ```bash
 echo "sdk.dir=/path/to/android-sdk" > local.properties
@@ -140,28 +159,51 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 ./gradlew :app:assembleRelease      # R8-shrunk release (~2.8 MB)
 ```
 
-Tests cover the streak engine (including freeze tokens, rest days, clock jumps and idempotency),
-recurrence resolution, the level curve, the reward economy, time/date parsing, both AI wire formats
-in each direction, PIN hashing and lockout escalation, and the Markdown parser — including the
-`snake_case` regression the tests caught before it shipped.
+**Web** — Node 18+:
+
+```bash
+cd web
+npm install
+npm run dev                         # http://127.0.0.1:5173
+npm run build                       # typecheck + static bundle into web/dist
+npm test                            # 65 unit tests
+```
+
+157 tests across the two clients. They cover the streak engine (freeze tokens, rest days, clock
+jumps, idempotency), recurrence resolution, the level curve, the reward economy, time/date parsing,
+both AI wire formats in each direction, PIN hashing and lockout escalation, the analytics selectors
+including the elapsed-day rule above, and the Markdown parser — including the `snake_case`
+regression the tests caught before it shipped. The web suite mirrors the Android one case for case:
+a divergence there is a bug in one of the clients, not a difference of opinion.
 
 ## Layout
 
 ```
-core/        TimeUtils, DayMask, StreakEngine, RecurrenceRules, Economy, Leveling, PinHasher
-data/local/  Room entities, DAOs, seed catalogues
-data/repo/   Task, Analytics, Progress, Chat, Recommendation repositories
-data/prefs/  DataStore-backed settings (AI config, app prefs, auth) + the runtime lock
-ai/          Provider client (two dialects), tool specs, tool executor, coach orchestrator
-work/        Reminder alarms, boot receiver, periodic housekeeping worker
-ui/          Theme, chart/markdown/component library, setup + lock screens, five tabs,
-             settings, block editor
+app/src/main/java/com/kairo/timemanager/
+  core/        TimeUtils, DayMask, StreakEngine, RecurrenceRules, Economy, Leveling, PinHasher
+  data/local/  Room entities, DAOs, seed catalogues
+  data/repo/   Task, Analytics, Progress, Chat, Recommendation repositories
+  data/prefs/  DataStore-backed settings (AI config, app prefs, auth) + the runtime lock
+  ai/          Provider client (two dialects), tool specs, tool executor, coach orchestrator
+  work/        Reminder alarms, boot receiver, periodic housekeeping worker
+  ui/          Theme, chart/markdown/component library, setup + lock screens, five tabs,
+               settings, block editor
+
+web/src/
+  core/        time + recurrence rules, ported from the Kotlin core
+  data/        types, defaults, localStorage, PBKDF2, selectors (read), mutations (write)
+  ai/          provider client, tool specs, executor, coach engine
+  components/  charts, Markdown renderer, shared UI primitives
+  screens/     the five tabs, plus editor and lock
 ```
 
 ## Not built yet
 
-**Cross-device sync via a companion website.** The app is local-only today: there is no account,
-no server, and nothing leaves the device except AI requests. The data model is already shaped for
-it — every table has stable ids and every per-day record is an append-only log keyed by
-`(entityId, epochDay)`, which is what a sync layer would need — but no sync code exists, and the
-Settings screen says so plainly rather than implying otherwise.
+**Cross-device sync.** The website exists now, but as a second client — not as a backend. Both
+apps are local-only: no account, no server, and nothing leaves the device except AI requests. Open
+Kairo on your phone and on your laptop and you have two separate timetables.
+
+The data model is shaped for closing that gap — every table has stable ids, every per-day record
+is an append-only log keyed by `(entityId, epochDay)`, and the web types mirror the Room entities
+field for field — but no sync code exists on either side, and both apps say so plainly in Settings
+rather than implying otherwise.

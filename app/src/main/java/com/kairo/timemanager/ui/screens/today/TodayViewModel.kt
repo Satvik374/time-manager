@@ -52,6 +52,21 @@ data class TodayUiState(
             ?: agenda.firstOrNull { !it.completed && it.startMinute >= minuteOfDay }
             ?: agenda.firstOrNull { !it.completed }
     }
+
+    /**
+     * Blocks whose time has already passed. On a day still running these are the only ones that
+     * can fairly be graded; a past day has all of them, a future day none.
+     */
+    fun dueCount(minuteOfDay: Int): Int = when {
+        epochDay > TimeUtils.todayEpochDay() -> 0
+        !isToday -> agenda.size
+        else -> agenda.count { minuteOfDay >= it.endMinute }
+    }
+
+    fun dueCompleted(minuteOfDay: Int): Int = when {
+        !isToday -> agenda.count { it.completed }
+        else -> agenda.count { it.completed && minuteOfDay >= it.endMinute }
+    }
 }
 
 @HiltViewModel

@@ -132,7 +132,7 @@ fun TodayScreen(
             item {
                 Column(Modifier.padding(horizontal = 16.dp)) {
                     Spacer(Modifier.height(16.dp))
-                    DaySummaryCard(state)
+                    DaySummaryCard(state, nowMinute)
                 }
             }
 
@@ -299,15 +299,20 @@ private fun DayStepper(state: TodayUiState, onShiftDay: (Long) -> Unit, onToday:
 }
 
 @Composable
-private fun DaySummaryCard(state: TodayUiState) {
+private fun DaySummaryCard(state: TodayUiState, nowMinute: Int) {
     val snapshot = state.snapshot
+    // The ring counts every block in the day, but the word beside it judges only the ones whose
+    // time has passed. A day with an evening session still ahead is not "Patchy" at three o'clock.
+    val due = state.dueCount(nowMinute)
+    val dueDone = state.dueCompleted(nowMinute)
+    val gradeRate = ScoreCopy.dayGradeRate(dueDone, due, snapshot.planned)
     KairoCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ProgressRing(
                 progress = snapshot.completionRate,
                 size = 104.dp,
                 strokeWidth = 11.dp,
-                color = ChartPalette.grade(snapshot.completionRate)
+                color = ChartPalette.grade(gradeRate)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -325,7 +330,7 @@ private fun DaySummaryCard(state: TodayUiState) {
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    ScoreCopy.grade(snapshot.completionRate),
+                    ScoreCopy.dayGrade(dueDone, due, snapshot.planned),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
