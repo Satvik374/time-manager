@@ -1,12 +1,14 @@
 package com.kairo.timemanager.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -35,6 +39,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.kairo.timemanager.ui.navigation.Routes
 import com.kairo.timemanager.ui.navigation.bottomTabs
+import com.kairo.timemanager.ui.screens.auth.LockScreen
+import com.kairo.timemanager.ui.screens.auth.SetupScreen
 import com.kairo.timemanager.ui.screens.chat.CoachScreen
 import com.kairo.timemanager.ui.screens.editor.TaskEditorScreen
 import com.kairo.timemanager.ui.screens.insights.InsightsScreen
@@ -43,8 +49,33 @@ import com.kairo.timemanager.ui.screens.rewards.RewardsScreen
 import com.kairo.timemanager.ui.screens.settings.SettingsScreen
 import com.kairo.timemanager.ui.screens.today.TodayScreen
 
+/**
+ * Gates the whole app behind first-run setup and the optional device lock, then hands over to
+ * the tabbed shell. Nothing below this point has to think about authentication.
+ */
 @Composable
-fun KairoRoot(startRoute: String? = null) {
+fun KairoRoot(
+    startRoute: String? = null,
+    gateViewModel: AppGateViewModel = hiltViewModel()
+) {
+    val gate by gateViewModel.gate.collectAsStateWithLifecycle()
+
+    Crossfade(targetState = gate, label = "appGate") { state ->
+        when (state) {
+            GateState.Loading -> Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            )
+            GateState.Setup -> SetupScreen(onFinished = {})
+            GateState.Locked -> LockScreen()
+            GateState.Unlocked -> KairoShell(startRoute = startRoute)
+        }
+    }
+}
+
+@Composable
+private fun KairoShell(startRoute: String? = null) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     val backStackEntry by navController.currentBackStackEntryAsState()

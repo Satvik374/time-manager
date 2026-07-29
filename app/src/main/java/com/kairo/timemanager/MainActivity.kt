@@ -3,14 +3,15 @@ package com.kairo.timemanager
 import android.Manifest
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kairo.timemanager.data.prefs.AppPrefs
+import com.kairo.timemanager.data.prefs.AppLockManager
 import com.kairo.timemanager.data.prefs.SettingsRepository
 import com.kairo.timemanager.ui.KairoRoot
 import com.kairo.timemanager.ui.theme.KairoTheme
@@ -31,8 +32,11 @@ class ThemeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppPrefs())
 }
 
+// FragmentActivity rather than ComponentActivity: BiometricPrompt needs a fragment host.
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+
+    @Inject lateinit var appLockManager: AppLockManager
 
     private val requestNotifications = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -55,6 +59,16 @@ class MainActivity : ComponentActivity() {
                 KairoRoot(startRoute = startRoute)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        appLockManager.onStarted()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        appLockManager.onStopped()
     }
 
     companion object {

@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kairo.timemanager.ui.components.EmptyState
+import com.kairo.timemanager.ui.components.MarkdownText
 
 private val quickPrompts = listOf(
     "Plan my day around 3 hours of deep work",
@@ -289,8 +290,8 @@ private fun AssistantBubble(text: String, isError: Boolean) {
                     )
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(
-                    text,
+                MarkdownText(
+                    markdown = text,
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (isError) MaterialTheme.colorScheme.onErrorContainer
                     else MaterialTheme.colorScheme.onSurface

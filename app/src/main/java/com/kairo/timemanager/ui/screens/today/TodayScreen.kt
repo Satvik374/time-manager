@@ -68,6 +68,7 @@ import com.kairo.timemanager.ui.components.EmptyState
 import com.kairo.timemanager.ui.components.GradientHeader
 import com.kairo.timemanager.ui.components.KairoCard
 import com.kairo.timemanager.ui.components.LabeledProgress
+import com.kairo.timemanager.ui.components.MarkdownText
 import com.kairo.timemanager.ui.components.ProgressRing
 import com.kairo.timemanager.ui.components.SectionHeader
 import com.kairo.timemanager.ui.components.StreakBadge
@@ -235,7 +236,11 @@ private fun TodayHeader(
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (state.isToday) TimeUtils.greeting(nowMinute) else TimeUtils.formatDayLabel(state.epochDay),
+                    when {
+                        !state.isToday -> TimeUtils.formatDayLabel(state.epochDay)
+                        state.profileName.isBlank() -> TimeUtils.greeting(nowMinute)
+                        else -> "${TimeUtils.greeting(nowMinute)}, ${state.profileName}"
+                    },
                     style = MaterialTheme.typography.labelLarge,
                     color = Color.White.copy(alpha = 0.85f)
                 )
@@ -393,8 +398,8 @@ private fun RecommendationCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        recommendation.body,
+                    MarkdownText(
+                        markdown = recommendation.body,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

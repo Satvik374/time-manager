@@ -8,6 +8,7 @@ import com.kairo.timemanager.core.Leveling
 import com.kairo.timemanager.core.TimeUtils
 import com.kairo.timemanager.data.local.entity.RecommendationEntity
 import com.kairo.timemanager.data.prefs.AppPrefs
+import com.kairo.timemanager.data.prefs.AuthRepository
 import com.kairo.timemanager.data.prefs.SettingsRepository
 import com.kairo.timemanager.data.repo.DaySnapshot
 import com.kairo.timemanager.data.repo.ProgressRepository
@@ -39,6 +40,7 @@ data class TodayUiState(
     val coins: Int = 0,
     val recommendations: List<RecommendationEntity> = emptyList(),
     val prefs: AppPrefs = AppPrefs(),
+    val profileName: String = "",
     val loading: Boolean = true
 ) {
     val isToday: Boolean get() = epochDay == TimeUtils.todayEpochDay()
@@ -58,6 +60,7 @@ class TodayViewModel @Inject constructor(
     private val progressRepository: ProgressRepository,
     private val recommendationRepository: RecommendationRepository,
     private val settingsRepository: SettingsRepository,
+    authRepository: AuthRepository,
     private val coachEngine: CoachEngine
 ) : ViewModel() {
 
@@ -75,8 +78,10 @@ class TodayViewModel @Inject constructor(
         selectedDay.flatMapLatest { day -> taskRepository.observeSnapshot(day) },
         progressRepository.observeStats(),
         recommendationRepository.observeOpen(),
-        settingsRepository.appPrefs
-    ) { agenda, snapshot, stats, recommendations, prefs ->
+        // Paired rather than a sixth argument: `combine` only has typed overloads up to five.
+        combine(settingsRepository.appPrefs, authRepository.state) { prefs, auth -> prefs to auth }
+    ) { agenda, snapshot, stats, recommendations, prefsAndAuth ->
+        val (prefs, auth) = prefsAndAuth
         TodayUiState(
             epochDay = snapshot.epochDay,
             agenda = agenda,
@@ -94,6 +99,7 @@ class TodayViewModel @Inject constructor(
             coins = stats.coins,
             recommendations = recommendations,
             prefs = prefs,
+            profileName = auth.profileName,
             loading = false
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TodayUiState())

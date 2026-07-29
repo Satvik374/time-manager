@@ -14,7 +14,7 @@ configure yourself.
 |---|---|
 | **Today** | Day agenda with expandable checklists, a completion ring, streak and coin badges, and optional coach suggestion cards. Step through any day. |
 | **Planner** | Week strip plus a proportional day timeline that shows gaps and clashes at a glance, or a list view of every block you've defined. |
-| **Coach** | Chat with the AI. It reads and edits your real timetable, and shows exactly which tools it ran. |
+| **Coach** | Chat with the AI. Replies render as formatted text, and it shows exactly which tools it ran. |
 | **Insights** | Daily / weekly / monthly analysis — completion rate, trend, category split, time-of-day profile, weekday strengths, month heatmap, and a data table. |
 | **Rewards** | Level and XP, coin shop, streak with freeze tokens, and 15 achievements. |
 
@@ -61,6 +61,18 @@ an array was specified.
 Two things the coach deliberately **cannot** do: award XP, coins or streak days, and redeem
 rewards. Those are earned and spent by you.
 
+### Formatted replies
+
+Models emit Markdown whether you ask them to or not, so the app renders it rather than showing raw
+asterisks. A small built-in parser (no third-party dependency) handles **bold**, *italic*, `code`,
+~~strikethrough~~, bullet and numbered lists, headings, block quotes, fenced code blocks, rules,
+links and simple pipe tables. Anything it doesn't recognise renders as literal text, so nothing is
+ever lost to the parser.
+
+Underscores inside words are deliberately left alone — an app whose own vocabulary is `task_id`
+and `get_schedule` cannot afford to italicise half of them. The shipped prompts tell the coach that
+Markdown renders, so it formats deliberately rather than by accident.
+
 ### Recommendations
 
 Optional and rate-limited. The coach posts at most one suggestion card per interval (default 12h,
@@ -68,6 +80,26 @@ configurable 4–72h), and only with evidence from analytics. Cards appear on To
 dismiss; they never change the schedule on their own. Notifications for them are **off** by
 default. You can also ask for one on demand from the Today tab. Turn the whole thing off in
 Settings and the app is a plain planner.
+
+## Profile and app lock
+
+Kairo has no account and no server — so "sign in" here means a lock on this device, not a login to
+anything. First run asks for a name and offers a PIN; you can skip the PIN and add it later, or
+never.
+
+- **PIN** — 4–8 digits, stored as a salted PBKDF2-HMAC-SHA256 digest at 120k iterations. The PIN
+  itself is never written anywhere. Verification is a constant-time comparison.
+- **Lockout** — escalating cooldowns after 5 wrong attempts (30s → 2m → 5m → 15m), capped so a
+  fat-fingered sequence isn't a permanent lockout.
+- **Biometrics** — optional fingerprint/face unlock on top of the PIN, offered automatically on the
+  lock screen. Never a replacement for the PIN, so removing biometrics can't strand you.
+- **Auto-lock** — instantly, or after 1 / 5 / 15 / 60 minutes in the background. Lock state lives in
+  memory, so a cold start is always locked.
+- **Settings** — rename yourself, change or remove the PIN, toggle biometrics, or lock immediately.
+
+Scope, stated plainly: this gates the UI. It is not encryption at rest — your data is protected by
+Android's app sandbox, as with any app. And because there is no account, a forgotten PIN can only
+be cleared by reinstalling, which erases the data. The lock screen says exactly that.
 
 ## Streaks and rewards
 
@@ -104,24 +136,26 @@ Requires JDK 17+ and the Android SDK (compileSdk 35, minSdk 26).
 ```bash
 echo "sdk.dir=/path/to/android-sdk" > local.properties
 ./gradlew :app:assembleDebug        # debug APK
-./gradlew :app:testDebugUnitTest    # 59 unit tests
-./gradlew :app:assembleRelease      # R8-shrunk release (~1.9 MB)
+./gradlew :app:testDebugUnitTest    # 92 unit tests
+./gradlew :app:assembleRelease      # R8-shrunk release (~2.8 MB)
 ```
 
 Tests cover the streak engine (including freeze tokens, rest days, clock jumps and idempotency),
-recurrence resolution, the level curve, the reward economy, time/date parsing, and both AI wire
-formats in each direction.
+recurrence resolution, the level curve, the reward economy, time/date parsing, both AI wire formats
+in each direction, PIN hashing and lockout escalation, and the Markdown parser — including the
+`snake_case` regression the tests caught before it shipped.
 
 ## Layout
 
 ```
-core/        TimeUtils, DayMask, StreakEngine, RecurrenceRules, Economy, Leveling
+core/        TimeUtils, DayMask, StreakEngine, RecurrenceRules, Economy, Leveling, PinHasher
 data/local/  Room entities, DAOs, seed catalogues
 data/repo/   Task, Analytics, Progress, Chat, Recommendation repositories
-data/prefs/  DataStore-backed settings (AI config + app prefs)
+data/prefs/  DataStore-backed settings (AI config, app prefs, auth) + the runtime lock
 ai/          Provider client (two dialects), tool specs, tool executor, coach orchestrator
 work/        Reminder alarms, boot receiver, periodic housekeeping worker
-ui/          Theme, chart + component library, five tab screens, settings, block editor
+ui/          Theme, chart/markdown/component library, setup + lock screens, five tabs,
+             settings, block editor
 ```
 
 ## Not built yet

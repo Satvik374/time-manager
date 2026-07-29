@@ -3,6 +3,7 @@ package com.kairo.timemanager.ai
 import com.kairo.timemanager.core.Leveling
 import com.kairo.timemanager.core.TimeUtils
 import com.kairo.timemanager.data.prefs.AiConfig
+import com.kairo.timemanager.data.prefs.AuthRepository
 import com.kairo.timemanager.data.prefs.SettingsRepository
 import com.kairo.timemanager.data.repo.AnalyticsRepository
 import com.kairo.timemanager.data.repo.ChatRepository
@@ -35,7 +36,8 @@ class CoachEngine @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val analyticsRepository: AnalyticsRepository,
     private val progressRepository: ProgressRepository,
-    private val recommendationRepository: RecommendationRepository
+    private val recommendationRepository: RecommendationRepository,
+    private val authRepository: AuthRepository
 ) {
 
     suspend fun send(userText: String, onProgress: suspend (CoachProgress) -> Unit) {
@@ -122,6 +124,7 @@ class CoachEngine @Inject constructor(
             todayIso = TimeUtils.formatIso(today),
             weekday = TimeUtils.dayOfWeek(today).getDisplayName(TextStyle.FULL, Locale.getDefault()),
             nowTime = TimeUtils.formatTime(TimeUtils.nowMinuteOfDay(), use24h = true),
+            profileName = runCatching { authRepository.current().profileName }.getOrDefault(""),
             streak = stats.currentStreak,
             level = Leveling.levelForXp(stats.xp),
             coins = stats.coins,
